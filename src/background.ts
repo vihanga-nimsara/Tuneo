@@ -113,6 +113,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             sendResponse({ ok: false, error });
             return;
           }
+          if (!result) {
+            showErrorToast("No match found. Make sure audio is playing clearly.");
+            chrome.runtime.sendMessage({ type: "recognition-result", result: null });
+            sendResponse({ ok: true });
+            return;
+          }
           const key = cacheKey(result);
           if (key) {
             resultCache.set(key, { result, ts: Date.now() });
