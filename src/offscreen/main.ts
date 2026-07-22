@@ -37,9 +37,16 @@ async function startCapture(streamId: string) {
       chrome.runtime.sendMessage({ type: "clip-error", error: "No audio captured." });
       return;
     }
-    const blob = new Blob(chunks, { type: "audio/webm" });
-    const dataUrl = await blobToDataUrl(blob);
-    chrome.runtime.sendMessage({ type: "clip-captured", dataUrl });
+    try {
+      const blob = new Blob(chunks, { type: "audio/webm" });
+      const dataUrl = await blobToDataUrl(blob);
+      chrome.runtime.sendMessage({ type: "clip-captured", dataUrl });
+    } catch (err) {
+      chrome.runtime.sendMessage({
+        type: "clip-error",
+        error: err instanceof Error ? err.message : String(err)
+      });
+    }
   };
 
   recorder.start();

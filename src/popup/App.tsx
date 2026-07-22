@@ -4,6 +4,10 @@ import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import OpenInNew from "@mui/icons-material/OpenInNew";
+import PushPin from "@mui/icons-material/PushPin";
+import ViewCompact from "@mui/icons-material/ViewCompact";
+import ViewStream from "@mui/icons-material/ViewStream";
+import IconButton from "@mui/material/IconButton";
 import ResultCard, { type Track } from "../sidepanel/ResultCard";
 import Waveform from "../sidepanel/Waveform";
 
@@ -15,13 +19,29 @@ export interface HistoryEntry {
   matchedAt: number;
 }
 
+function artworkUrl(track: Track): string {
+  const appleArt = track.apple_music?.artwork?.url?.replace("{w}x{h}", "300x300");
+  return appleArt ?? track.spotify?.album?.images?.[0]?.url ?? "";
+}
+
 export default function App() {
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [userName, setUserName] = useState("");
+  const [compact, setCompact] = useState(false);
   const timeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
+    chrome.storage.local.get(["compactCards"]).then((res) => {
+      if (res.compactCards) setCompact(true);
+    });
+    chrome.identity.getProfileUserInfo().then((info) => {
+      const name = info.email?.split("@")[0] ?? "";
+      setUserName(name ? `Hi, ${name}` : "");
+    }).catch(() => {});
+
     chrome.storage.local.get(["history"]).then((res) => {
       if (Array.isArray(res.history)) setHistory(res.history);
     });
@@ -36,6 +56,7 @@ export default function App() {
             matchedAt: Date.now()
           };
           setStatus("matched");
+          setExpandedId(entry.id);
           setHistory((prev) => {
             const next = [entry, ...prev].slice(0, 25);
             chrome.storage.local.set({ history: next });
@@ -72,8 +93,11 @@ export default function App() {
     if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
   };
 
-  const openSidepanel = () => {
-    chrome.runtime.sendMessage({ type: "open-sidepanel" });
+  const openSidepanel = async () => {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (tab?.windowId) {
+      await chrome.sidePanel.open({ windowId: tab.windowId });
+    }
   };
 
   let statusText: string;
@@ -97,31 +121,58 @@ export default function App() {
       statusText = "Tap to identify music";
   }
 
+  const bgUrl = history.length > 0 ? artworkUrl(history[0].track) : "";
+
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", minHeight: 420, width: 360, py: 2, px: 2 }}>
-      <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ mb: 2 }}>
-        <Box
-          sx={{
-            width: 30, height: 30, borderRadius: "8px",
-            background: "linear-gradient(135deg, #4b3aff, #7a6bff)",
-            color: "#fff", display: "flex", alignItems: "center",
-            justifyContent: "center", fontSize: 16,
-            boxShadow: "0 4px 10px rgba(75,58,255,0.28)",
-          }}
-        >
-          ♪
-        </Box>
-        <Typography sx={{ fontWeight: 700, fontSize: 15, letterSpacing: "-0.01em" }}>
-          Tuneo
-        </Typography>
+    <Box sx={{ display: "flex", flexDirection: "column", maxHeight: 600, width: 360, py: 2, px: 2, position: "relative", overflow: "hidden" }}>
+      {bgUrl && (
+        <>
+          <Box
+            sx={{
+              position: "absolute", inset: 0, zIndex: 0,
+              backgroundImage: `url(${bgUrl})`,
+              backgroundSize: "cover", backgroundPosition: "center",
+              filter: "blur(40px)", opacity: 0.08,
+            }}
+          />
+          <Box
+            sx={{
+              position: "absolute", inset: 0, zIndex: 0,
+              background: "linear-gradient(to bottom, rgba(246,245,251,0.92) 0%, transparent 30%, transparent 65%, rgba(246,245,251,0.96) 100%)",
+            }}
+          />
+        </>
+      )}
+      <Box sx={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", maxHeight: 600, overflowY: "auto" }}>
+      <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+        <img src="/tuneo.png" alt="Tuneo" draggable={false} onContextMenu={(e) => e.preventDefault()} style={{ height: 20, userSelect: "none" }} />
+        <Stack direction="row" spacing={0.5} alignItems="center">
+          {userName && (
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+              {userName}
+            </Typography>
+          )}
+          <IconButton size="small" onClick={() => {
+            const next = !compact;
+            setCompact(next);
+            chrome.storage.local.set({ compactCards: next });
+          }} title={compact ? "Normal view" : "Compact view"}>
+            {compact ? <ViewStream sx={{ fontSize: 16, color: "text.disabled" }} /> : <ViewCompact sx={{ fontSize: 16, color: "text.disabled" }} />}
+          </IconButton>
+          <IconButton size="small" onClick={openSidepanel} title="Pin popup (open side panel)">
+            <PushPin sx={{ fontSize: 16, color: "text.disabled" }} />
+          </IconButton>
+        </Stack>
       </Stack>
 
       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, mb: 2 }}>
-        <Waveform
-          active={status === "listening"}
-          onStart={startListening}
-          onStop={stopListening}
-        />
+        {status === "listening" ? (
+          <Box component="button" onClick={stopListening} sx={{ background: "none", border: "none", cursor: "pointer", p: 0, lineHeight: 0 }}>
+            <img src="/source.gif" alt="Listening..." style={{ width: 100, height: 100, borderRadius: "50%" }} />
+          </Box>
+        ) : (
+          <Waveform active={status === "listening"} onStart={startListening} onStop={stopListening} />
+        )}
         <Typography variant="body2" sx={{ color: "text.secondary", textAlign: "center", ...statusSx }}>
           {statusText}
         </Typography>
@@ -139,14 +190,15 @@ export default function App() {
             <Typography variant="caption">Play audio in this tab, then tap the button above.</Typography>
           </Box>
         )}
-        {history.slice(0, 3).map((entry) => (
+        {history.slice(0, compact ? 25 : 10).map((entry, i) => (
           <ResultCard
             key={entry.id}
             track={entry.track}
             matchedAt={entry.matchedAt}
-            expanded={false}
-            isLatest={false}
-            onToggle={() => {}}
+            expanded={expandedId === entry.id}
+            isLatest={i === 0}
+            onToggle={() => setExpandedId((cur) => (cur === entry.id ? null : entry.id))}
+            compact={compact}
           />
         ))}
       </Box>
@@ -162,6 +214,7 @@ export default function App() {
           See all matches
         </Button>
       )}
+    </Box>
     </Box>
   );
 }

@@ -4,7 +4,6 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Avatar from "@mui/material/Avatar";
 import Collapse from "@mui/material/Collapse";
-import Chip from "@mui/material/Chip";
 import IconButton from "@mui/material/IconButton";
 import Snackbar from "@mui/material/Snackbar";
 import ExpandMore from "@mui/icons-material/ExpandMore";
@@ -13,6 +12,7 @@ import MusicNote from "@mui/icons-material/MusicNote";
 import CalendarMonth from "@mui/icons-material/CalendarMonth";
 import Label from "@mui/icons-material/Label";
 import Link from "@mui/icons-material/Link";
+import { SpotifyIcon, AppleMusicIcon, DeezerIcon, YouTubeIcon, YouTubeMusicIcon, SoundCloudIcon, PLATFORMS } from "./PlatformIcons";
 
 export interface Track {
   title: string;
@@ -46,13 +46,15 @@ export default function ResultCard({
   matchedAt,
   expanded,
   isLatest,
-  onToggle
+  onToggle,
+  compact
 }: {
   track: Track;
   matchedAt: number;
   expanded: boolean;
   isLatest: boolean;
   onToggle: () => void;
+  compact?: boolean;
 }) {
   const [copiedToast, setCopiedToast] = useState(false);
   const art = artworkFor(track);
@@ -65,31 +67,35 @@ export default function ResultCard({
   };
 
   return (
-    <Card sx={{ mb: 1, ...(isLatest && { borderColor: "primary.light" }) }}>
+    <Card sx={{ mb: compact ? 0.5 : 1, ...(isLatest && { borderColor: "primary.light" }) }}>
       <Box
         component="button"
         onClick={onToggle}
         sx={{
-          width: "100%", display: "flex", alignItems: "center", gap: 1.5, p: 1.5,
+          width: "100%", display: "flex", alignItems: "center", gap: compact ? 1 : 1.5, p: compact ? 1 : 1.5,
           background: "none", border: "none", cursor: "pointer", textAlign: "left",
           font: "inherit", color: "inherit",
           "&:hover": { backgroundColor: "action.hover" },
         }}
       >
-        <Avatar src={art ?? undefined} sx={{ width: 44, height: 44, borderRadius: "10px", bgcolor: "primary.light", color: "primary.main" }}>
+        <Avatar src={art ?? undefined} sx={{ width: compact ? 28 : 44, height: compact ? 28 : 44, borderRadius: compact ? "6px" : "10px", bgcolor: "primary.light", color: "primary.main" }}>
           <MusicNote />
         </Avatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography noWrap sx={{ fontWeight: 600, fontSize: 13.5, letterSpacing: "-0.01em" }}>
-            {track.title}
+          <Typography noWrap sx={{ fontWeight: 600, fontSize: compact ? 12.5 : 13.5, letterSpacing: "-0.01em" }}>
+            {compact ? `${track.title} — ${track.artist}` : track.title}
           </Typography>
-          <Typography noWrap variant="body2" color="text.secondary">
-            {track.artist}
-          </Typography>
+          {!compact && (
+            <Typography noWrap variant="body2" color="text.secondary">
+              {track.artist}
+            </Typography>
+          )}
         </Box>
-        <Typography variant="caption" sx={{ color: "text.disabled", flexShrink: 0, pl: 1 }}>
-          {timeAgo(matchedAt)}
-        </Typography>
+        {!compact && (
+          <Typography variant="caption" sx={{ color: "text.disabled", flexShrink: 0, pl: 1 }}>
+            {timeAgo(matchedAt)}
+          </Typography>
+        )}
         <ExpandMore sx={{ fontSize: 18, color: "text.disabled", flexShrink: 0, transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.18s ease" }} />
       </Box>
 
@@ -109,19 +115,20 @@ export default function ResultCard({
               <Link sx={{ fontSize: 15 }} />
               <Typography variant="caption" color="text.secondary">Listen</Typography>
             </Box>
-            <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", justifyContent: "flex-end", flex: 1 }}>
-              {track.spotify?.external_urls?.spotify && (
-                <Chip label="Spotify" component="a" href={track.spotify.external_urls.spotify} target="_blank" rel="noreferrer" clickable size="small" color="primary" variant="outlined" />
-              )}
+            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "flex-end", flex: 1, alignItems: "center" }}>
+              <PlatformLink
+                href={track.spotify?.external_urls?.spotify ?? `https://open.spotify.com/search/${encodeURIComponent(track.title + " " + track.artist)}`}
+                icon={<SpotifyIcon sx={{ fontSize: 15 }} />} label="Spotify" color={PLATFORMS.spotify.color} hover={PLATFORMS.spotify.hover}
+              />
               {track.apple_music?.url && (
-                <Chip label="Apple Music" component="a" href={track.apple_music.url} target="_blank" rel="noreferrer" clickable size="small" color="primary" variant="outlined" />
+                <PlatformLink href={track.apple_music.url} icon={<AppleMusicIcon sx={{ fontSize: 15 }} />} label="Apple Music" color={PLATFORMS.apple_music.color} hover={PLATFORMS.apple_music.hover} />
               )}
               {track.deezer?.link && (
-                <Chip label="Deezer" component="a" href={track.deezer.link} target="_blank" rel="noreferrer" clickable size="small" color="primary" variant="outlined" />
+                <PlatformLink href={track.deezer.link} icon={<DeezerIcon sx={{ fontSize: 15 }} />} label="Deezer" color={PLATFORMS.deezer.color} hover={PLATFORMS.deezer.hover} />
               )}
-              <Chip label="YouTube Music" component="a" href={`https://music.youtube.com/search?q=${encodeURIComponent(track.title + " " + track.artist)}`} target="_blank" rel="noreferrer" clickable size="small" color="primary" variant="outlined" />
-              <Chip label="YouTube" component="a" href={`https://www.youtube.com/results?search_query=${encodeURIComponent(track.title + " " + track.artist)}`} target="_blank" rel="noreferrer" clickable size="small" color="primary" variant="outlined" />
-              <Chip label="SoundCloud" component="a" href={`https://soundcloud.com/search?q=${encodeURIComponent(track.title + " " + track.artist)}`} target="_blank" rel="noreferrer" clickable size="small" color="primary" variant="outlined" />
+              <PlatformLink href={`https://music.youtube.com/search?q=${encodeURIComponent(track.title + " " + track.artist)}`} icon={<YouTubeMusicIcon sx={{ fontSize: 15 }} />} label="YouTube Music" color={PLATFORMS.youtube_music.color} hover={PLATFORMS.youtube_music.hover} />
+              <PlatformLink href={`https://www.youtube.com/results?search_query=${encodeURIComponent(track.title + " " + track.artist)}`} icon={<YouTubeIcon sx={{ fontSize: 15 }} />} label="YouTube" color={PLATFORMS.youtube.color} hover={PLATFORMS.youtube.hover} />
+              <PlatformLink href={`https://soundcloud.com/search?q=${encodeURIComponent(track.title + " " + track.artist)}`} icon={<SoundCloudIcon sx={{ fontSize: 15 }} />} label="SoundCloud" color={PLATFORMS.soundcloud.color} hover={PLATFORMS.soundcloud.hover} />
               <IconButton size="small" onClick={copyLink} sx={{ ml: 0.25 }} title="Copy link">
                 <ContentCopy sx={{ fontSize: 14 }} />
               </IconButton>
@@ -142,6 +149,28 @@ export default function ResultCard({
         sx={{ "& .MuiSnackbarContent-root": { borderRadius: 9999, fontSize: 13, fontWeight: 600, py: 0.5 } }}
       />
     </Card>
+  );
+}
+
+function PlatformLink({ href, icon, label, color, hover }: { href: string; icon: React.ReactNode; label: string; color: string; hover: string }) {
+  return (
+    <Box
+      component="a"
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      sx={{
+        display: "inline-flex", alignItems: "center", gap: 0.5,
+        color, textDecoration: "none", fontWeight: 600, fontSize: 12,
+        border: "1px solid", borderColor: `${color}33`,
+        borderRadius: 9999, px: 1, py: 0.4, lineHeight: 1.4,
+        transition: "background 0.15s ease, border-color 0.15s ease",
+        "&:hover": { backgroundColor: `${hover}15`, borderColor: `${hover}55` },
+      }}
+    >
+      {icon}
+      {label}
+    </Box>
   );
 }
 

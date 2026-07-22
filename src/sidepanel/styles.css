@@ -2,6 +2,11 @@
 
 html, body { margin: 0; padding: 0; min-width: 340px; }
 
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d0d0db; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #b8b8c8; }
+
 /* Listen button */
 .listen-wrap {
   position: relative;
@@ -16,7 +21,9 @@ html, body { margin: 0; padding: 0; min-width: 340px; }
   height: 100px;
   border-radius: 50%;
   border: none;
-  background: linear-gradient(135deg, #4b3aff, #7a6bff);
+  background: linear-gradient(135deg, #4b3aff, #1d1d1f, #4b3aff);
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease-in-out infinite;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -24,6 +31,11 @@ html, body { margin: 0; padding: 0; min-width: 340px; }
   box-shadow: 0 8px 32px rgba(75, 58, 255, 0.25);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   -webkit-tap-highlight-color: transparent;
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }
 
 .listen-btn:hover {

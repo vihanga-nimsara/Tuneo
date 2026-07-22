@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
@@ -9,10 +9,10 @@ import Search from "@mui/icons-material/Search";
 import FileDownload from "@mui/icons-material/FileDownload";
 import ContentCopy from "@mui/icons-material/ContentCopy";
 import Delete from "@mui/icons-material/Delete";
+import ViewCompact from "@mui/icons-material/ViewCompact";
+import ViewStream from "@mui/icons-material/ViewStream";
+import IconButton from "@mui/material/IconButton";
 import ResultCard, { type Track } from "./ResultCard";
-import Waveform from "./Waveform";
-
-type Status = "idle" | "listening" | "matched" | "no-match" | "error";
 
 export interface HistoryEntry {
   id: string;
@@ -62,6 +62,11 @@ function toTextList(entries: HistoryEntry[]): string {
   return entries.map((e) => `${e.track.artist} - ${e.track.title}`).join("\n");
 }
 
+function artworkUrl(track: Track): string {
+  const appleArt = track.apple_music?.artwork?.url?.replace("{w}x{h}", "300x300");
+  return appleArt ?? track.spotify?.album?.images?.[0]?.url ?? "";
+}
+
 function download(content: string, filename: string, mime: string) {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
@@ -73,65 +78,45 @@ function download(content: string, filename: string, mime: string) {
 }
 
 export default function App() {
-  const [status, setStatus] = useState<Status>("idle");
-  const [errorMsg, setErrorMsg] = useState("");
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [copiedText, setCopiedText] = useState(false);
-  const timeoutRef = useRef<number | null>(null);
+  const [userName, setUserName] = useState("");
+  const [compact, setCompact] = useState(false);
 
   useEffect(() => {
+    chrome.storage.local.get(["compactCards"]).then((res) => {
+      if (res.compactCards) setCompact(true);
+    });
+    chrome.identity.getProfileUserInfo().then((info) => {
+      const name = info.email?.split("@")[0] ?? "";
+      setUserName(name ? `Hi, ${name}` : "");
+    }).catch(() => {});
+
     chrome.storage.local.get(["history"]).then((res) => {
       if (Array.isArray(res.history)) setHistory(res.history);
     });
 
     const listener = (message: any) => {
       if (message?.type === "recognition-result") {
-        if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
         if (message.result) {
           const entry: HistoryEntry = {
             id: crypto.randomUUID(),
             track: message.result,
             matchedAt: Date.now()
           };
-          setStatus("matched");
-          setExpandedId(entry.id);
           setHistory((prev) => {
             const next = [entry, ...prev].slice(0, 25);
             chrome.storage.local.set({ history: next });
             return next;
           });
-          setTimeout(() => setStatus("idle"), 5000);
-        } else {
-          setStatus("no-match");
-          setTimeout(() => setStatus("idle"), 3000);
         }
-      }
-      if (message?.type === "recognition-error") {
-        if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
-        setErrorMsg(message.error ?? "Something went wrong.");
-        setStatus("error");
       }
     };
     chrome.runtime.onMessage.addListener(listener);
     return () => chrome.runtime.onMessage.removeListener(listener);
   }, []);
-
-  const startListening = () => {
-    setStatus("listening");
-    chrome.runtime.sendMessage({ type: "start-listening" });
-    timeoutRef.current = window.setTimeout(() => {
-      setErrorMsg("Listening timed out. Try again.");
-      setStatus("error");
-    }, 15000);
-  };
-
-  const stopListening = () => {
-    chrome.runtime.sendMessage({ type: "stop-listening" });
-    setStatus("idle");
-    if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
-  };
 
   const clearHistory = () => {
     setHistory([]);
@@ -151,57 +136,45 @@ export default function App() {
 
   const filtered = filterEntries(history, search);
 
-  let statusText: string;
-  let statusSx = {};
-  switch (status) {
-    case "listening":
-      statusText = "Listening...";
-      break;
-    case "matched":
-      statusText = "Song identified!";
-      break;
-    case "no-match":
-      statusText = "No match found";
-      statusSx = { color: "text.disabled" };
-      break;
-    case "error":
-      statusText = errorMsg;
-      statusSx = { color: "error.main" };
-      break;
-    default:
-      statusText = "Tap to identify music";
-  }
+  const bgUrl = history.length > 0 ? artworkUrl(history[0].track) : "";
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <Box sx={{ display: "flex", justifyContent: "center", py: 2.5, px: 2 }}>
-        <Stack direction="row" spacing={1} alignItems="center">
+    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh", position: "relative" }}>
+      {bgUrl && (
+        <>
           <Box
             sx={{
-              width: 34, height: 34, borderRadius: "10px",
-              background: "linear-gradient(135deg, #4b3aff, #7a6bff)",
-              color: "#fff", display: "flex", alignItems: "center",
-              justifyContent: "center", fontSize: 18,
-              boxShadow: "0 4px 10px rgba(75,58,255,0.28)",
+              position: "fixed", inset: 0, zIndex: 0,
+              backgroundImage: `url(${bgUrl})`,
+              backgroundSize: "cover", backgroundPosition: "center",
+              filter: "blur(40px)", opacity: 0.08,
             }}
-          >
-            ♪
-          </Box>
-          <Typography sx={{ fontWeight: 700, fontSize: 16, letterSpacing: "-0.01em" }}>
-            Tuneo
-          </Typography>
-        </Stack>
-      </Box>
-
-      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 5, px: 2, gap: 3 }}>
-        <Waveform
-          active={status === "listening"}
-          onStart={startListening}
-          onStop={stopListening}
-        />
-        <Typography variant="body2" sx={{ color: "text.secondary", textAlign: "center", ...statusSx }}>
-          {statusText}
-        </Typography>
+          />
+          <Box
+            sx={{
+              position: "fixed", inset: 0, zIndex: 0,
+              background: "linear-gradient(to bottom, rgba(246,245,251,0.92) 0%, transparent 30%, transparent 65%, rgba(246,245,251,0.96) 100%)",
+            }}
+          />
+        </>
+      )}
+      <Box sx={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", py: 2.5, px: 2 }}>
+        <img src="/tuneo.png" alt="Tuneo" draggable={false} onContextMenu={(e) => e.preventDefault()} style={{ height: 22, userSelect: "none" }} />
+        {userName && (
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+              {userName}
+            </Typography>
+            <IconButton size="small" onClick={() => {
+              const next = !compact;
+              setCompact(next);
+              chrome.storage.local.set({ compactCards: next });
+            }} title={compact ? "Normal view" : "Compact view"}>
+              {compact ? <ViewStream sx={{ fontSize: 16, color: "text.disabled" }} /> : <ViewCompact sx={{ fontSize: 16, color: "text.disabled" }} />}
+            </IconButton>
+          </Stack>
+        )}
       </Box>
 
       <Box sx={{ px: 2, pb: 2.5 }}>
@@ -258,7 +231,7 @@ export default function App() {
         {history.length === 0 && (
           <Box sx={{ textAlign: "center", py: 4, color: "text.disabled" }}>
             <Typography variant="body2">No matches yet</Typography>
-            <Typography variant="caption">Play audio in this tab, then tap the button above.</Typography>
+            <Typography variant="caption">Identify a song from the popup to see it here.</Typography>
           </Box>
         )}
         {filtered.length === 0 && history.length > 0 && (
@@ -274,9 +247,11 @@ export default function App() {
             expanded={expandedId === entry.id}
             isLatest={history[0]?.id === entry.id}
             onToggle={() => setExpandedId((cur) => (cur === entry.id ? null : entry.id))}
+            compact={compact}
           />
         ))}
       </Box>
+    </Box>
     </Box>
   );
 }

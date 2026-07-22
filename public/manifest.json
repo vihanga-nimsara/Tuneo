@@ -28,7 +28,9 @@
     "tabCapture",
     "offscreen",
     "storage",
-    "activeTab"
+    "activeTab",
+    "identity",
+    "scripting"
   ],
   "host_permissions": [
     "https://api.audd.io/*"
