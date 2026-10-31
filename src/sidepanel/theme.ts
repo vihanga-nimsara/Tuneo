@@ -10,7 +10,7 @@ export const theme = createTheme({
   },
   shape: { borderRadius: 12 },
   typography: {
-    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    fontFamily: '"Bricolage Grotesque", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     fontSize: 14,
   },
   components: {

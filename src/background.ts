@@ -128,6 +128,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           }
           showResultToast(result);
           await saveResult(result);
+          sendToBeacon(result);
           chrome.runtime.sendMessage({ type: "recognition-result", result });
           sendResponse({ ok: true });
           break;
@@ -161,6 +162,35 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 async function getActiveTab() {
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   return tab;
+}
+
+const BEACON_URL = 'http://127.0.0.1:14921/track';
+
+async function sendToBeacon(result: any) {
+  const tab = await getActiveTab();
+  const artUrl =
+    result.apple_music?.artwork?.url?.replace('{w}x{h}', '512x512') ??
+    result.spotify?.album?.images?.[0]?.url ??
+    '';
+  const payload = {
+    title: result.title,
+    artist: result.artist,
+    artwork: artUrl,
+    source: tab?.url ? new URL(tab.url).hostname : '',
+    sourceHint: 'Tuneo',
+    favicon: tab?.favIconUrl || '',
+    pageUrl: tab?.url || '',
+  };
+  try {
+    const res = await fetch(BEACON_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) console.log('[tuneo] sent to Beacon');
+  } catch {
+    console.log('[tuneo] Beacon not available');
+  }
 }
 
 function showErrorToast(message: string) {

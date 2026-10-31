@@ -145,7 +145,9 @@ export default function App() {
       )}
       <Box sx={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", maxHeight: 600, overflowY: "auto" }}>
       <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-        <img src="/tuneo.png" alt="Tuneo" draggable={false} onContextMenu={(e) => e.preventDefault()} style={{ height: 20, userSelect: "none" }} />
+        <Typography component="span" sx={{ fontWeight: 800, fontSize: 18, letterSpacing: "-0.02em", lineHeight: 1, userSelect: "none" }}>
+          Tuneo
+        </Typography>
         <Stack direction="row" spacing={0.5} alignItems="center">
           {userName && (
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
