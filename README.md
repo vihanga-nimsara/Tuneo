@@ -2,6 +2,8 @@
 
 A Chrome/Edge extension that identifies songs playing in browser tabs — built to replace Shazam's discontinued browser extension.
 
+[![Sponsor](https://img.shields.io/github/sponsors/vihanga-nimsara?style=social)](https://github.com/sponsors/vihanga-nimsara)
+
 ## How it works
 
 - **Popup** (`src/popup`) — click the toolbar icon to open a compact 360x420 popup with a listen button, gradient animation, and recent matches (up to 10, or 25 in compact view).
